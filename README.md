@@ -3,9 +3,9 @@ FPGA design and implementation of cubehash16/32-256
 
 To run this project, follow the steps:
 1. make sure you have:
-  1. Basys 3
-  2. Raspberry Pi
-  3. 22 jumper wires
+     a. Basys 3
+     b. Raspberry Pi
+     c. 22 jumper wires
 
 2. connect between Basys 3 and Raspberry Pi with jumper wires as shown in the table. (Project Report - page number 5)
 
