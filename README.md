@@ -21,6 +21,4 @@ To run this project, follow the steps:
 
 4. Run the Python code
 
-5. Enter a message and press on the center button of the Basys 3 to reset the system
-
 That's it! 
