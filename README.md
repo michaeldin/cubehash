@@ -3,6 +3,8 @@ FPGA design and implementation of cubehash16/32-256
 
 To run this project, follow the steps:
 1. make sure you have:
+   
+   
      a. Basys 3
      
      
