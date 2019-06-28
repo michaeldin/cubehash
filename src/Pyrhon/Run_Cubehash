@@ -1,0 +1,131 @@
+import binascii 
+import time
+import  RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BOARD)
+
+##############
+
+# GPIO
+part_hash = [8, 10, 12, 16, 18, 22, 24, 26] # part of cubehash result
+load_hash = 36 # indicate to read part_hash
+part_msg = [19, 21, 23, 29, 31, 33, 35, 37] # part of message
+in_en = 5 # indicates that there are blocks to send
+start = 7 # indicates that the first block was sent
+load = 11 # load message
+done = 40 # indicates that the encryption process is done 
+level_rst = 38 # steady signal of reset 
+block = 256 # Block size
+cipher = ['']*256
+
+def setup(): #setups and reset the pins.
+	GPIO.setup(part_msg, GPIO.OUT)
+	GPIO.setup(load, GPIO.OUT)
+	GPIO.setup(start, GPIO.OUT)
+	GPIO.setup(in_en, GPIO.OUT)
+	GPIO.setup(done, GPIO.IN)
+	GPIO.setup(level_rst, GPIO.IN)
+	GPIO.setup(part_hash, GPIO.IN)
+	GPIO.setup(load_hash, GPIO.IN)
+	GPIO.output(part_msg, GPIO.LOW)
+	GPIO.output(in_en, GPIO.LOW)
+        GPIO.output(start, GPIO.LOW)
+        GPIO.output(load, GPIO.LOW)
+
+def recieve(): # recieve the result of cubehash
+
+	for i in range(32):
+		if GPIO.input(load_hash) == 1:
+			
+
+			for j in range (8):
+				cipher[j+i*8] = GPIO.input(part_hash[j])
+			while GPIO.input(load_hash) == 1:
+				pass
+			if i != 31:
+				while GPIO.input(load_hash) == 0:
+					pass
+
+	return map(str, cipher)
+
+
+def pad(msg): # padding the message
+	if msg != "":
+		if msg[0] == "0" or msg[0] == "1" or msg[0] == "2" or msg[0] == "3" or msg[0] == "4" or msg[0] == "5" or msg[0] == "6" or msg[0] == "7" or msg[0] == "8" or msg[0] == "9":
+			msg = bin(int(binascii.hexlify(msg), 16)) #convert ASCII to binary.
+			msg = msg.replace("b", "0") # terminating parasitic "b". (we know it's in binary!)
+		else:
+			msg = bin(int(binascii.hexlify(msg), 16)) #convert ASCII to binary.
+                        msg = msg.replace("b", "") # terminating parasitic "b". (we know it's in binary!)
+
+	tail = block - (len(msg)%block)
+	if tail != 256:
+		msg = msg + '1'
+		for i in range(tail - 1):
+			msg = msg +'0'
+	else:
+		msg = msg + '1'
+		for i in range(255):
+			msg = msg + '0'
+	return msg
+
+
+def endian(msg, blocks): # makes the message in little endian format
+	tmp_msg = ['']*256
+	msg = list(msg)
+	for j in range(blocks):
+		for i in range(256*j, 256 + 256*j, 32):
+			tmp_msg[i % 256: (i + 8) % 256: 1] = msg[i+24: i + 32: 1]
+			tmp_msg[(i + 8) % 256: (i + 16) % 256: 1] = msg[i + 16: i + 24: 1]
+			tmp_msg[(i + 16) % 256: (i + 24) % 256: 1] = msg[i + 8: i + 16: 1]
+			tmp_msg[(i + 24) % 256: (i + 32) % 256: 1] = msg[i: i + 8: 1]
+
+                msg[256*j: 256 + 256*j:1] = tmp_msg[0:256:1]
+	return map(int, msg)
+
+
+
+def transmit(msg, blocks): # Transmit the message in packages of 8 bits
+	GPIO.output(in_en, GPIO.HIGH)
+	for j in range(blocks):
+		for i in range (256*j, 248 + 256*j, 8):
+			for P in range (8):
+				GPIO.output(part_msg[P], msg[i+P])
+			GPIO.output(load, GPIO.HIGH)
+
+			GPIO.output(load, GPIO.LOW)
+
+		if j == 0:
+			GPIO.output(start, GPIO.HIGH)
+		for i in range (248 + 256*j, 256 + 256*j):
+			GPIO.output(part_msg[i%8], msg[i])
+		
+		GPIO.output(load, GPIO.HIGH)
+
+		GPIO.output(load, GPIO.LOW)
+		GPIO.output(start, GPIO.LOW)
+
+	GPIO.output(in_en, GPIO.LOW)
+def main():
+	setup()
+	msg = raw_input('\n' "enter a  message: ")
+	msg = pad(msg)
+	blocks = len(msg)/block
+	msg = endian(msg, blocks)
+	print  '\n',  "Please press on the center button of the Basys 3 "
+	GPIO.wait_for_edge(level_rst, GPIO.RISING)
+	time.sleep(1)
+	transmit(msg, blocks)
+
+	
+
+	if GPIO.input(done) == 1:
+		cipher = recieve()
+		hex_cipher = ['']*64
+		for i in range (64):
+                	hex_cipher[i] = hex(int("".join(cipher[4*i: 4 + 4*i: 1]), 2)) 		
+		final_answer = "".join(hex_cipher)
+		final_answer = final_answer.replace("0x", "")
+		print '\n', '\n', "The cipher text is: ", '\n' ,final_answer , '\n', '\n'
+		GPIO.output(part_msg, GPIO.LOW)
+		GPIO.cleanup()
+main()
