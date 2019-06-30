@@ -15,7 +15,7 @@ To run this project, follow the steps:
      
      
 
-2. connect between Basys 3 and Raspberry Pi with jumper wires as shown in the table. (Project Report - page number 5)
+2. connect between Basys 3 and Raspberry Pi with jumper wires as shown in the table. (Project Report - page number 11)
 
 3. Program FPGA with the bitstream
 
